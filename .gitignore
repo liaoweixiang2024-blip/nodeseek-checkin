@@ -1,0 +1,4 @@
+.env
+.nodeseek-cookie.json
+node_modules/
+logs/
