@@ -16,7 +16,7 @@ NodeSeek 论坛自动签到工具，支持多账号、Cookie 自动续期、邮�
 
 ### 1. 准备
 
-- 注册 [YesCaptcha](https://yescaptcha.com) 获取客户端 Key
+- 注册 [YesCaptcha](https://yescaptcha.com/i/CnxOIp) 获取客户端 Key
 - 准备邮箱 IMAP 授权码（不是登录密码）
 
 ### 2. 上传到服务器
