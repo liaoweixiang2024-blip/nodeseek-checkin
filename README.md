@@ -67,25 +67,18 @@ tail -30 /opt/nodeseek/logs/checkin.log   # 看签到结果
 
 ## 管理命令
 
+安装后会生成 `ns` 管理命令，日常操作两三个字母搞定：
+
 ```bash
-# 手动签到一次
-systemctl start nodeseek.service
-
-# 看签到日志
-tail -30 /opt/nodeseek/logs/checkin.log
-
-# 看运行报错（脚本 import 阶段失败只会出现在这里）
-journalctl -u nodeseek.service -n 50 --no-pager
-
-# 查看定时器状态
-systemctl list-timers nodeseek.timer --no-pager
-
-# 升级（重新跑安装命令即可，.env 会保留）
-bash <(curl -fsSL https://raw.githubusercontent.com/liaoweixiang2024-blip/nodeseek-checkin/main/install.sh)
-
-# 卸载
-bash install.sh --uninstall
+ns           # 看定时任务 + 服务状态
+ns run       # 手动签到一次（并显示日志）
+ns log       # 看签到日志
+ns err       # 看运行报错（脚本 import 失败只在这里能看到）
+ns update    # 升级到最新版（.env 会保留）
+ns uninstall # 卸载
 ```
+
+> `ns` 本质是封装了 `systemctl` / `journalctl` / `tail` 的快捷脚本，位于 `/usr/local/bin/ns`，想看实现直接 `cat /usr/local/bin/ns`。
 
 ## 多账号
 

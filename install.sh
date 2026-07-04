@@ -21,6 +21,7 @@ BRANCH="main"
 APP_DIR="/opt/nodeseek"
 SERVICE="/etc/systemd/system/nodeseek.service"
 TIMER="/etc/systemd/system/nodeseek.timer"
+NS_BIN="/usr/local/bin/ns"
 PYTHON_BIN="python3"
 
 # ── 颜色输出 ────────────────────────────────────────────────────
@@ -41,7 +42,7 @@ die()  { err "$*"; exit 1; }
 if [ "${1:-}" = "--uninstall" ]; then
   step "卸载 NodeSeek 签到"
   systemctl disable --now nodeseek.timer 2>/dev/null || true
-  rm -f "$SERVICE" "$TIMER"
+  rm -f "$SERVICE" "$TIMER" "$NS_BIN"
   systemctl daemon-reload
   read -r -p "是否删除代码与配置目录 $APP_DIR(含 .env、cookie、日志)?[y/N] " ans
   case "$ans" in y|Y|yes) rm -rf "$APP_DIR"; ok "已删除 $APP_DIR" ;; *) ok "保留 $APP_DIR" ;; esac
@@ -122,7 +123,6 @@ if [ -d "$APP_DIR/.git" ]; then
   git -C "$APP_DIR" reset --hard --quiet "origin/$BRANCH"
   ok "代码已更新到最新 ($BRANCH)"
 else
-  # 备份用户已有的 .env / cookie(手动部署过的目录)
   ENV_BACKUP=""
   if [ -f "$APP_DIR/.env" ]; then
     ENV_BACKUP="$(mktemp)"
@@ -215,7 +215,68 @@ systemctl enable --now nodeseek.timer >/dev/null 2>&1 \
   || die "定时任务启用失败"
 ok "定时任务已启用(每天 09:05 ±5分钟)"
 
-# ── 8. 完成 ─────────────────────────────────────────────────────
+# ── 8. 安装 ns 管理命令 ────────────────────────────────────────
+step "安装管理命令 ns"
+cat > "$NS_BIN" <<'NSCRIPT'
+#!/usr/bin/env bash
+# NodeSeek 签到管理命令
+APP_DIR="/opt/nodeseek"
+SERVICE="nodeseek.service"
+TIMER="nodeseek.timer"
+
+usage() {
+  cat <<EOF
+用法: ns <命令>
+
+  run        手动签到一次(并显示日志)
+  log        看签到日志
+  err        看运行报错(journalctl)
+  status     看定时任务和服务状态
+  update     升级到最新版
+  uninstall  卸载
+
+不带参数等同于 status。
+EOF
+}
+
+case "${1:-status}" in
+  run)
+    systemctl start "$SERVICE"
+    echo "已触发签到,等待 2 秒..."
+    sleep 2
+    tail -n 30 "$APP_DIR/logs/checkin.log" 2>/dev/null
+    ;;
+  log)
+    tail -n 30 "$APP_DIR/logs/checkin.log" 2>/dev/null
+    ;;
+  err)
+    journalctl -u "$SERVICE" -n 50 --no-pager
+    ;;
+  status)
+    systemctl list-timers "$TIMER" --no-pager 2>/dev/null
+    echo "── $SERVICE ──"
+    systemctl status "$SERVICE" --no-pager 2>/dev/null | head -n 10
+    ;;
+  update|install)
+    bash "$APP_DIR/install.sh"
+    ;;
+  uninstall)
+    bash "$APP_DIR/install.sh" --uninstall
+    ;;
+  -h|--help|help)
+    usage
+    ;;
+  *)
+    echo "未知命令: $1" >&2
+    usage
+    exit 1
+    ;;
+esac
+NSCRIPT
+chmod +x "$NS_BIN"
+ok "管理命令已安装: ns"
+
+# ── 9. 完成 ─────────────────────────────────────────────────────
 step "完成"
 echo
 if [ "$NEED_ENV" -eq 1 ]; then
@@ -223,16 +284,16 @@ if [ "$NEED_ENV" -eq 1 ]; then
   echo "    nano $APP_DIR/.env"
   echo
   printf '填好后手动跑一次验证:%s\n' "$C_GREEN"
-  echo "    systemctl start nodeseek.service"
-  echo "    systemctl status nodeseek.service${C_NC}"
+  echo "    ns run${C_NC}"
 else
-  printf '%s.env 已配置,可手动触发一次签到测试:%s\n' "$C_GREEN" "$C_NC"
-  echo "    systemctl start nodeseek.service"
+  printf '%s.env 已配置,手动签到一次:%s\n' "$C_GREEN" "$C_NC"
+  echo "    ns run"
 fi
 echo
-echo "── 常用命令 ──────────────────────────────"
-echo "  看签到日志:  tail -30 $APP_DIR/logs/checkin.log"
-echo "  看运行报错:  journalctl -u nodeseek.service -n 50 --no-pager"
-echo "  看定时状态:  systemctl list-timers nodeseek.timer --no-pager"
-echo "  升级脚本:    重新运行本脚本即可"
+echo "── 日常管理(ns 命令)──────────────────────"
+echo "  ns           看状态"
+echo "  ns run       手动签到"
+echo "  ns log       看签到日志"
+echo "  ns err       看运行报错"
+echo "  ns update    升级到最新版"
 echo "──────────────────────────────────────────"
