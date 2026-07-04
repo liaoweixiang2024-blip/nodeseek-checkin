@@ -230,7 +230,6 @@ usage() {
 
   run        手动签到一次(并显示日志)
   log        看签到日志
-  me         查看账户状态(等级/鸡腿/发帖,Cookie 是否有效)
   err        看运行报错(journalctl)
   status     看定时任务和服务状态
   update     升级到最新版
@@ -249,9 +248,6 @@ case "${1:-status}" in
     ;;
   log)
     tail -n 30 "$APP_DIR/logs/checkin.log" 2>/dev/null
-    ;;
-  me)
-    python3 "$APP_DIR/main.py" --status
     ;;
   err)
     journalctl -u "$SERVICE" -n 50 --no-pager

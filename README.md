@@ -73,7 +73,6 @@ tail -30 /opt/nodeseek/logs/checkin.log   # 看签到结果
 ns           # 看定时任务 + 服务状态
 ns run       # 手动签到一次（并显示日志）
 ns log       # 看签到日志
-ns me        # 查看账户状态（等级 / 鸡腿 / 发帖，Cookie 是否有效）
 ns err       # 看运行报错（脚本 import 失败只在这里能看到）
 ns update    # 升级到最新版（.env 会保留）
 ns uninstall # 卸载
