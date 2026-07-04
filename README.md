@@ -19,21 +19,30 @@ NodeSeek 论坛自动签到工具，支持多账号、Cookie 自动续期、邮�
 - 注册 [YesCaptcha](https://yescaptcha.com/i/CnxOIp) 获取客户端 Key
 - 准备邮箱 IMAP 授权码（不是登录密码）
 
-### 2. 上传到服务器
+### 2. 一键安装
+
+在服务器上以 root 执行一行命令：
 
 ```bash
-scp main.py .env install.sh root@你的服务器IP:/opt/nodeseek/
+bash <(curl -fsSL https://raw.githubusercontent.com/liaoweixiang2024-blip/nodeseek-checkin/main/install.sh)
 ```
 
-### 3. 配置
+脚本会自动完成：
+- **环境检查**：检测包管理器，缺 `git` / `python3` / `pip` 自动补齐
+- **拉取代码**：从 GitHub 克隆到 `/opt/nodeseek`
+- **安装依赖**：`pip install curl_cffi`（预编译包失败会自动装编译依赖重试）
+- **配置服务**：写入 systemd service + timer，开机自启，每天 09:05 ±5 分钟签到
+- **保留配置**：已存在的 `.env` 永远不覆盖；没有则从模板生成
+
+> 国内服务器若连不上 GitHub，可先在本机 `scp install.sh root@服务器IP:/root/`，再 `bash /root/install.sh`。
+
+### 3. 配置账号
 
 ```bash
-ssh root@你的服务器IP
-cp /opt/nodeseek/.env.example /opt/nodeseek/.env
 nano /opt/nodeseek/.env
 ```
 
-编辑 `.env`，填入你的真实信息：
+填入你的真实信息：
 
 ```env
 # 账号1
@@ -49,17 +58,12 @@ YESCAPTCHA_KEY="你的YesCaptcha客户端Key"
 NS_RANDOM="true"
 ```
 
-### 4. 一键部署
+### 4. 验证
 
 ```bash
-bash /opt/nodeseek/install.sh
+systemctl start nodeseek.service      # 手动签到一次
+tail -30 /opt/nodeseek/logs/checkin.log   # 看签到结果
 ```
-
-部署完成后会自动：
-- 安装 Python 依赖
-- 设置时区为上海
-- 创建 systemd 定时任务（每天 ~9:05 签到）
-- 开启开机自启
 
 ## 管理命令
 
@@ -67,14 +71,20 @@ bash /opt/nodeseek/install.sh
 # 手动签到一次
 systemctl start nodeseek.service
 
-# 查看日志
-cat /opt/nodeseek/logs/checkin.log
+# 看签到日志
+tail -30 /opt/nodeseek/logs/checkin.log
+
+# 看运行报错（脚本 import 阶段失败只会出现在这里）
+journalctl -u nodeseek.service -n 50 --no-pager
 
 # 查看定时器状态
-systemctl status nodeseek.timer
+systemctl list-timers nodeseek.timer --no-pager
 
-# 修改配置后重载
-systemctl daemon-reload
+# 升级（重新跑安装命令即可，.env 会保留）
+bash <(curl -fsSL https://raw.githubusercontent.com/liaoweixiang2024-blip/nodeseek-checkin/main/install.sh)
+
+# 卸载
+bash install.sh --uninstall
 ```
 
 ## 多账号
@@ -119,9 +129,11 @@ IMAP_PASS2="授权码2"
 | 文件 | 说明 |
 |------|------|
 | `main.py` | 主程序（单文件，纯 Python） |
-| `.env` | 配置文件（**不要泄露**） |
+| `.env` | 配置文件（**不要泄露**，已 gitignore） |
 | `.env.example` | 配置模板 |
-| `install.sh` | 一键部署脚本 |
+| `install.sh` | 一键安装 / 升级 / 卸载脚本 |
+| `.nodeseek-cookie.json` | 登录 Cookie 缓存（自动生成，已 gitignore） |
+| `logs/checkin.log` | 签到日志（自动生成，已 gitignore） |
 
 ## 注意事项
 
