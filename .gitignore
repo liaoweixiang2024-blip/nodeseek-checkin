@@ -2,3 +2,13 @@
 .nodeseek-cookie.json
 node_modules/
 logs/
+
+# 系统/编辑器
+.DS_Store
+
+# Python 缓存
+__pycache__/
+*.pyc
+
+# Claude Code 本地配置（含本地路径与敏感信息，勿提交）
+.claude/
