@@ -653,5 +653,78 @@ def main():
     log("========== NodeSeek 签到结束 ==========")
 
 
+# ── 账户状态查询 ──────────────────────────────────────────────────
+
+
+def account_status(cookie: str, label: str = "", member_id: str = "") -> str:
+    """查询账户状态:Cookie 有效性 + 用户信息(等级/鸡腿/发帖数)"""
+    tag = f"[{label}]" if label else ""
+
+    try:
+        session = requests.Session(impersonate="chrome110")
+        headers = {**BROWSER_HEADERS, "Cookie": cookie}
+
+        # 访问首页,验证 Cookie 并尝试探测 member_id
+        home = session.get("https://www.nodeseek.com/", headers=headers, timeout=20)
+
+        if not member_id:
+            m = re.search(r'/space/(\d+)', home.text)
+            if m:
+                member_id = m.group(1)
+        if not member_id:
+            m = re.search(r'memberId=(\d+)', cookie)
+            if m:
+                member_id = m.group(1)
+
+        if not member_id:
+            return f"{tag} 未获取到 member_id(Cookie 可能已失效,或在 .env 配 NS_MEMBER_ID 查看详情)"
+
+        info_resp = session.get(
+            f"https://www.nodeseek.com/api/account/getInfo/{member_id}?readme=1",
+            headers={**headers, "Referer": f"https://www.nodeseek.com/space/{member_id}"},
+            timeout=20,
+        )
+        data = info_resp.json()
+        if not data.get("success"):
+            return f"{tag} 查询失败: {data.get('message', data)}"
+
+        u = data["detail"]
+        return (f"{tag} {u['member_name']} | 等级 {u['rank']} | "
+                f"鸡腿 {u['coin']} | 主题 {u['nPost']} | 评论 {u['nComment']}")
+    except Exception as e:
+        return f"{tag} 查询异常(Cookie 可能已失效): {e}"
+
+
+def run_status():
+    """查询所有账号状态"""
+    load_env()
+    cookies_store = load_cookies()
+
+    i = 1
+    found = False
+    while True:
+        user = os.getenv(f"NS_USER{i}", "").strip()
+        if not user:
+            break
+        found = True
+        cookie = cookies_store.get(user, {}).get("value", "")
+        member_id = os.getenv(f"NS_MEMBER_ID{i}", "").strip()
+        if not cookie:
+            print(f"[{user}] 无缓存 Cookie,先运行签到登录(ns run)")
+        else:
+            print(account_status(cookie, label=user, member_id=member_id))
+        i += 1
+
+    if not found:
+        usernames = [s.strip() for s in os.getenv("NS_USERNAME", "").split(",") if s.strip()]
+        for user in usernames:
+            cookie = cookies_store.get(user, {}).get("value", "")
+            if cookie:
+                print(account_status(cookie, label=user))
+
+
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) > 1 and sys.argv[1] == "--status":
+        run_status()
+    else:
+        main()
