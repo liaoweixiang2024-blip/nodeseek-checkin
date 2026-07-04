@@ -235,11 +235,14 @@ usage() {
   update     升级到最新版
   uninstall  卸载
 
-不带参数等同于 status。
+不带参数显示此帮助。
 EOF
 }
 
-case "${1:-status}" in
+case "${1:-}" in
+  "")
+    usage
+    ;;
   run)
     systemctl start "$SERVICE"
     echo "已触发签到,等待 2 秒..."

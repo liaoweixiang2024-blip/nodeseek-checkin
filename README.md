@@ -70,10 +70,11 @@ tail -30 /opt/nodeseek/logs/checkin.log   # 看签到结果
 安装后会生成 `ns` 管理命令，日常操作两三个字母搞定：
 
 ```bash
-ns           # 看定时任务 + 服务状态
+ns           # 显示用法（同 ns -h / ns help）
 ns run       # 手动签到一次（并显示日志）
 ns log       # 看签到日志
 ns err       # 看运行报错（脚本 import 失败只在这里能看到）
+ns status    # 看定时任务 + 服务状态
 ns update    # 升级到最新版（.env 会保留）
 ns uninstall # 卸载
 ```
