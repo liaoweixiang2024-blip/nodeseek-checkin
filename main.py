@@ -16,7 +16,7 @@ from curl_cffi import requests
 
 # ── 常量 ──────────────────────────────────────────────────────────────────
 
-APP_VERSION = "1.1.0"
+APP_VERSION = "1.1.1"
 
 ROOT = Path(__file__).resolve().parent
 COOKIE_FILE = ROOT / ".nodeseek-cookie.json"
