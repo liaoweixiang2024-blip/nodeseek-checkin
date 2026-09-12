@@ -266,6 +266,15 @@ def _generate_integrity_token() -> str:
     return f"{h[:8]}-{h[8:12]}-{h[12:16]}-{h[16:20]}-{h[20:]}"
 
 
+def _parse_json(resp, context: str) -> dict:
+    """解析 JSON 响应；被 Cloudflare 拦截时给出可读的错误信息"""
+    try:
+        return resp.json()
+    except Exception:
+        preview = re.sub(r"\s+", " ", resp.text)[:150]
+        raise RuntimeError(f"{context}响应不是 JSON (HTTP {resp.status_code}): {preview}")
+
+
 # ── 登录 ────────────────────────────────────────────────────────────────
 
 
@@ -302,7 +311,7 @@ def login(username: str, password: str, client_key: str, base_url: str,
         timeout=30,
     )
 
-    body = resp.json()
+    body = _parse_json(resp, "登录")
 
     # 检查是否需要邮箱验证
     redirect = body.get("redirect", "")
@@ -365,7 +374,7 @@ def _login_via_email(session, username: str, redirect: str,
         },
         timeout=30,
     )
-    send_body = send_resp.json()
+    send_body = _parse_json(send_resp, "发送邮箱验证码")
     if not send_body.get("success"):
         raise RuntimeError(f"发送验证码失败: {send_body.get('message', send_body)}")
 
@@ -386,7 +395,7 @@ def _login_via_email(session, username: str, redirect: str,
         },
         timeout=30,
     )
-    login_body = login_resp.json()
+    login_body = _parse_json(login_resp, "邮箱验证登录")
     if not login_body.get("success"):
         raise RuntimeError(f"邮箱验证登录失败: {login_body.get('message', login_body)}")
 
@@ -443,28 +452,36 @@ def checkin(cookie: str, label: str = "") -> dict:
             impersonate="chrome110",
             timeout=30,
         )
-
-        data = resp.json()
-        message = data.get("message", "")
-
-        if data.get("success"):
-            log(f"{tag}[签到] {message or '签到成功'}")
-            return {"ok": True, "message": message, "need_relogin": False}
-
-        if "已签到" in message or "已完成" in message:
-            log(f"{tag}[签到] 今日已签到")
-            return {"ok": True, "message": "今日已签到", "need_relogin": False}
-
-        if resp.status_code in (401, 403) or "未登录" in message:
-            log(f"{tag}[签到] Cookie 已失效，需要重新登录")
-            return {"ok": False, "message": "Cookie 失效", "need_relogin": True}
-
-        log(f"{tag}[签到] 签到异常: {data}")
-        return {"ok": False, "message": message, "need_relogin": False}
-
     except Exception as err:
+        # 网络层错误（DNS/超时等），重登也没用，直接失败
         log(f"{tag}[签到] 请求失败: {err}")
         return {"ok": False, "message": str(err), "need_relogin": False}
+
+    # 先拿到响应再解析：Cloudflare 拦截时返回的是 HTML 挑战页而非 JSON
+    try:
+        data = resp.json()
+    except Exception:
+        preview = re.sub(r"\s+", " ", resp.text)[:150]
+        log(f"{tag}[签到] 响应不是 JSON (HTTP {resp.status_code}): {preview}")
+        log(f"{tag}[签到] Cookie 已失效或被 Cloudflare 拦截，需要重新登录")
+        return {"ok": False, "message": f"HTTP {resp.status_code} 非JSON响应", "need_relogin": True}
+
+    message = data.get("message", "")
+
+    if data.get("success"):
+        log(f"{tag}[签到] {message or '签到成功'}")
+        return {"ok": True, "message": message, "need_relogin": False}
+
+    if "已签到" in message or "已完成" in message:
+        log(f"{tag}[签到] 今日已签到")
+        return {"ok": True, "message": "今日已签到", "need_relogin": False}
+
+    if resp.status_code in (401, 403) or "未登录" in message:
+        log(f"{tag}[签到] Cookie 已失效，需要重新登录")
+        return {"ok": False, "message": "Cookie 失效", "need_relogin": True}
+
+    log(f"{tag}[签到] 签到异常: {data}")
+    return {"ok": False, "message": message, "need_relogin": False}
 
 
 # ── 随机浏览帖子（模拟真人行为）──────────────────────────────────────
