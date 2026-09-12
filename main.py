@@ -94,7 +94,20 @@ def save_cookies(data: dict):
 # ── YesCaptcha 解 Turnstile ────────────────────────────────────────────
 
 
-def solve_captcha(client_key: str, base_url: str) -> str:
+def solve_captcha(client_key: str, base_url: str, attempts: int = 3) -> str:
+    """解 Turnstile 验证码；YesCaptcha 偶发卡单，自动重试"""
+    last_err = None
+    for i in range(1, attempts + 1):
+        try:
+            return _solve_captcha_once(client_key, base_url)
+        except RuntimeError as err:
+            last_err = err
+            if i < attempts:
+                log(f"[Captcha] 第 {i}/{attempts} 次尝试失败({err})，重试...")
+    raise last_err
+
+
+def _solve_captcha_once(client_key: str, base_url: str) -> str:
     log("[Captcha] 创建 YesCaptcha Turnstile 任务...")
     resp = requests.post(
         f"{base_url}/createTask",
@@ -116,19 +129,28 @@ def solve_captcha(client_key: str, base_url: str) -> str:
     log(f"[Captcha] 任务已创建: {task_id}，等待解决...")
 
     deadline = time.time() + 120
+    polls = 0
     while time.time() < deadline:
         time.sleep(5)
-        result = requests.post(
-            f"{base_url}/getTaskResult",
-            json={"clientKey": client_key, "taskId": task_id},
-            timeout=30,
-        ).json()
+        polls += 1
+        try:
+            result = requests.post(
+                f"{base_url}/getTaskResult",
+                json={"clientKey": client_key, "taskId": task_id},
+                timeout=30,
+            ).json()
+        except Exception:
+            # 查询接口偶发网络抖动，继续轮询
+            continue
 
         if result.get("status") == "ready" and result.get("solution", {}).get("token"):
             log("[Captcha] 验证码已解决")
             return result["solution"]["token"]
         if result.get("status") == "failed":
             raise RuntimeError(f"验证码任务失败: {result}")
+
+        if polls % 6 == 0:
+            log(f"[Captcha] 仍在解决中... (已等待 {polls * 5} 秒)")
 
     raise RuntimeError("验证码超时未解决")
 
