@@ -16,6 +16,8 @@ from curl_cffi import requests
 
 # ── 常量 ──────────────────────────────────────────────────────────────────
 
+APP_VERSION = "1.1.0"
+
 ROOT = Path(__file__).resolve().parent
 COOKIE_FILE = ROOT / ".nodeseek-cookie.json"
 LOG_FILE = ROOT / "logs" / "checkin.log"
@@ -655,7 +657,7 @@ def main():
         log("未配置 YESCAPTCHA_KEY")
         sys.exit(1)
 
-    log(f"========== NodeSeek 签到开始，共 {len(accounts)} 个账号 ==========")
+    log(f"========== NodeSeek 签到 v{APP_VERSION} 开始，共 {len(accounts)} 个账号 ==========")
 
     for idx, acc in enumerate(accounts):
         log(f"── 账号 {idx+1}/{len(accounts)}: {acc['user']} ──")

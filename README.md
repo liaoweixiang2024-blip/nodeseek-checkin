@@ -1,4 +1,4 @@
-# NodeSeek 自动签到
+# NodeSeek 自动签到 v1.1.0
 
 NodeSeek 论坛自动签到工具，支持多账号、Cookie 自动续期、邮箱验证码自动获取、随机浏览模拟真人行为。
 
@@ -128,6 +128,19 @@ IMAP_PASS2="授权码2"
 | `install.sh` | 一键安装 / 升级 / 卸载脚本 |
 | `.nodeseek-cookie.json` | 登录 Cookie 缓存（自动生成，已 gitignore） |
 | `logs/checkin.log` | 签到日志（自动生成，已 gitignore） |
+
+## 更新日志
+
+### v1.1.0 (2026-09-12)
+
+- 修复：Cookie 过期被 Cloudflare 拦截（返回 HTML 挑战页）时签到永远失败的问题，现在会自动重新登录自愈
+- 新增：`ns` 管理命令（run / log / err / status / update / uninstall）
+- 新增：一键安装脚本支持 GitHub 拉取、环境检查、systemd 自动配置
+- 日志现在会显示版本号，方便确认服务器已升级
+
+### v1.0.0
+
+- 首个版本：多账号签到、Cookie 自动续期、邮箱验证码、随机浏览模拟真人
 
 ## 注意事项
 
